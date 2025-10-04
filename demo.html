@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Canvas Particles — Live Demo</title>
+    <link rel="stylesheet" href="demo.css" />
+    <script>
+      // Load demo.js with a cache-busting query so Live Server changes show immediately
+      (function(){
+        const s = document.createElement('script');
+        s.src = 'demo.js?v=' + Date.now();
+        s.defer = true;
+        document.head.appendChild(s);
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="controls">
+      <div class="control-row">
+        <label for="entitySelect">Entity:</label>
+        <select id="entitySelect">
+            <option value="none">None</option>
+            <option value="snake" selected>Snake</option>
+            <option value="fish">Fish</option>
+            <option value="koi">Koi</option>
+            <option value="centipede">Centipede</option>
+            <option value="dragon">Dragon</option>
+        </select>
+      </div>
+      <div class="control-row">
+        <label for="count">Count: <span id="countLabel">50</span>
+          <input id="count" type="range" min="0" max="200" value="50" />
+        </label>
+      </div>
+      <div class="control-row">
+        <label for="speed">Speed: <span id="speedLabel">1.0</span>
+          <input id="speed" type="range" min="0.1" max="5" step="0.1" value="1" />
+        </label>
+      </div>
+      <button id="clear">Clear</button>
+    </div>
+
+    <canvas id="canvas"></canvas>
+  </body>
+</html>

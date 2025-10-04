@@ -1,0 +1,40 @@
+:root{
+  --bg:#0f1724;
+  --panel: rgba(255,255,255,0.06);
+  --accent: #60a5fa;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background: radial-gradient(1000px 600px at 10% 10%, #071028 0%, var(--bg) 35%), var(--bg);
+  font-family: system-ui,Segoe UI,Roboto,Helvetica,Arial;
+  color: #e6eef8;
+}
+.controls{
+  position: fixed;
+  left: 12px;
+  top: 12px;
+  bottom: 12px;
+  padding: 16px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: flex-start;
+  z-index: 10;
+  width: 200px;
+}
+.controls label{font-size:13px;display:flex;flex-direction:column;align-items:flex-start}
+.controls input[type=range]{width:140px}
+.controls button{background:var(--accent);border:none;color:#06223a;padding:6px 10px;border-radius:6px;cursor:pointer}
+.controls .hint{display:block;font-size:11px;color:rgba(230,238,248,0.7)}
+canvas{display:block;width:100vw;height:100vh}
+.control-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+}
