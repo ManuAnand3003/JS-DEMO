@@ -11,6 +11,12 @@
   let w = canvas.width = innerWidth;
   let h = canvas.height = innerHeight;
 
+  // Handle window resizing
+  window.addEventListener('resize', () => {
+    w = canvas.width = innerWidth;
+    h = canvas.height = innerHeight;
+  });
+
   const rand = (a, b) => Math.random() * (b - a) + a;
 
   // Linear interpolation
