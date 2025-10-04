@@ -388,6 +388,64 @@
   // =================================================================
 
   // =================================================================
+  // SKELETAL ENTITY (BASE CLASS)
+  // Provides common "follow-the-leader" mechanics for segmented creatures.
+  // =================================================================
+  class SkeletalEntity {
+    constructor(config) {
+      this.config = Object.assign({
+        boneCount: 20,
+        boneLength: 25,
+        headAngleSmoothing: 8,
+        headSpeed: { min: 1.5, max: 6.0, dist: 300 },
+      }, config);
+      this.bones = [];
+      this.init();
+    }
+
+    init() {
+      this.bones = [];
+      const hx = Math.round(w / 2);
+      const hy = Math.round(h / 2);
+      for (let i = 0; i < this.config.boneCount; i++) {
+        this.bones.push({
+          x: hx - i * this.config.boneLength,
+          y: hy,
+          angle: 0
+        });
+      }
+    }
+
+    update(dt, px, py, speedVal) {
+      const head = this.bones[0];
+      const dx = px - head.x;
+      const dy = py - head.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const targetAngle = Math.atan2(dy, dx);
+
+      head.angle = angleLerp(head.angle, targetAngle, Math.min(1, dt * this.config.headAngleSmoothing));
+
+      const moveSpeed = lerp(this.config.headSpeed.min, this.config.headSpeed.max, Math.min(1, dist / this.config.headSpeed.dist)) * speedVal;
+      head.x += Math.cos(head.angle) * moveSpeed * Math.min(1, dt * 60);
+      head.y += Math.sin(head.angle) * moveSpeed * Math.min(1, dt * 60);
+
+      for (let i = 1; i < this.bones.length; i++) {
+        const parent = this.bones[i - 1];
+        const child = this.bones[i];
+        const bdx = parent.x - child.x;
+        const bdy = parent.y - child.y;
+        const bTargetAngle = Math.atan2(bdy, bdx);
+
+        child.x = parent.x - Math.cos(bTargetAngle) * this.config.boneLength;
+        child.y = parent.y - Math.sin(bTargetAngle) * this.config.boneLength;
+        child.angle = bTargetAngle;
+      }
+    }
+
+    emitParticles() { /* Base implementation does nothing */ }
+  }
+
+  // =================================================================
   // FISH ENTITY
   // Defines a simple fish that swims towards the cursor.
   // =================================================================
@@ -617,68 +675,18 @@ class Koi extends Fish {
   // CENTIPEDE ENTITY
   // Defines a multi-segmented creature with legs that follows the cursor.
   // =================================================================
-  class Centipede {
+  class Centipede extends SkeletalEntity {
     /**
      * Represents a multi-segmented centipede that follows the cursor.
      * The centipede has a variable number of bones, each with a length and angle.
      * It animates its legs and antennae and emits no particles.
      */
     constructor() {
-      this.boneCount = 40;
-      this.boneLength = 12;
-      this.bones = [];
-      this.init();
-    }
-
-    init() {
-      /**
-       * Initializes the centipede's bones with a default position and angle.
-       */
-      this.bones = [];
-      const hx = Math.round(w / 2);
-      const hy = Math.round(h / 2);
-      for (let i = 0; i < this.boneCount; i++) {
-        this.bones.push({
-          x: hx - i * this.boneLength,
-          y: hy,
-          angle: 0
-        });
-      }
-    }
-
-    update(dt, px, py, speedVal) {
-      /**
-       * Updates the centipede's properties based on the provided parameters.
-       * Moves the head towards the cursor and updates the position and angle of each bone segment.
-       * @param {number} dt - The time delta in seconds.
-       * @param {number} px - The x coordinate of the cursor.
-       * @param {number} py - The y coordinate of the cursor.
-       * @param {number} speedVal - A multiplier to adjust the centipede's speed.
-       */
-      const head = this.bones[0];
-      const dx = px - head.x;
-      const dy = py - head.y;
-      const dist = Math.hypot(dx, dy) || 1;
-      const targetAngle = Math.atan2(dy, dx);
-
-      const angleDiff = ((targetAngle - head.angle + Math.PI) % (Math.PI * 2)) - Math.PI;
-      head.angle += angleDiff * Math.min(1, dt * 10);
-
-      const moveSpeed = lerp(1.5, 6.0, Math.min(1, dist / 300)) * speedVal;
-      head.x += Math.cos(head.angle) * moveSpeed * Math.min(1, dt * 60);
-      head.y += Math.sin(head.angle) * moveSpeed * Math.min(1, dt * 60);
-
-      for (let i = 1; i < this.bones.length; i++) {
-        const parent = this.bones[i - 1];
-        const child = this.bones[i];
-        const bdx = parent.x - child.x;
-        const bdy = parent.y - child.y;
-        const bTargetAngle = Math.atan2(bdy, bdx);
-
-        child.x = parent.x - Math.cos(bTargetAngle) * this.boneLength;
-        child.y = parent.y - Math.sin(bTargetAngle) * this.boneLength;
-        child.angle = bTargetAngle;
-      }
+      super({
+        boneCount: 40,
+        boneLength: 12,
+        headAngleSmoothing: 10,
+      });
     }
 
     draw(ctx) {
@@ -692,16 +700,16 @@ class Koi extends Fish {
         const t = i / this.bones.length;
 
         // Body segment
-        const grad = ctx.createRadialGradient(b.x, b.y, 1, b.x, b.y, this.boneLength * 0.7);
+        const grad = ctx.createRadialGradient(b.x, b.y, 1, b.x, b.y, this.config.boneLength * 0.7);
         grad.addColorStop(0, `hsl(30, 50%, ${lerp(50, 35, t)}%)`);
         grad.addColorStop(1, `hsl(30, 50%, ${lerp(30, 15, t)}%)`);
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(b.x, b.y, lerp(this.boneLength * 0.6, this.boneLength * 0.2, t), 0, Math.PI * 2);
+        ctx.arc(b.x, b.y, lerp(this.config.boneLength * 0.6, this.config.boneLength * 0.2, t), 0, Math.PI * 2);
         ctx.fill();
 
         // Procedurally animate legs to wiggle as the centipede moves.
-        const legLength = this.boneLength * 1.4;
+        const legLength = this.config.boneLength * 1.4;
         const legWiggle = Math.sin(time * 40 - i * 0.5);
         const pxp = -Math.sin(b.angle);
         const pyp = Math.cos(b.angle);
@@ -728,12 +736,12 @@ class Koi extends Fish {
 
       // Head
       const head = this.bones[0];
-      const headGrad = ctx.createRadialGradient(head.x, head.y, 2, head.x, head.y, this.boneLength);
+      const headGrad = ctx.createRadialGradient(head.x, head.y, 2, head.x, head.y, this.config.boneLength);
       headGrad.addColorStop(0, 'hsl(30, 60%, 60%)');
       headGrad.addColorStop(1, 'hsl(30, 60%, 40%)');
       ctx.fillStyle = headGrad;
       ctx.beginPath();
-      ctx.arc(head.x, head.y, this.boneLength * 0.8, 0, Math.PI * 2);
+      ctx.arc(head.x, head.y, this.config.boneLength * 0.8, 0, Math.PI * 2);
       ctx.fill();
       
       // Add wiggling antennae to the head.
@@ -744,7 +752,7 @@ class Koi extends Fish {
         const ang = head.angle - side * 0.5 + antennaWiggle * side * 0.3;
         ctx.beginPath();
         ctx.moveTo(head.x, head.y);
-        ctx.lineTo(head.x + Math.cos(ang) * this.boneLength * 1.5, head.y + Math.sin(ang) * this.boneLength * 1.5);
+        ctx.lineTo(head.x + Math.cos(ang) * this.config.boneLength * 1.5, head.y + Math.sin(ang) * this.config.boneLength * 1.5);
         ctx.stroke();
       }
 
@@ -752,13 +760,6 @@ class Koi extends Fish {
       ctx.beginPath();
       ctx.arc(head.x + Math.cos(head.angle) * 4, head.y + Math.sin(head.angle) * 4, 2, 0, Math.PI * 2);
       ctx.fill();
-    }
-
-    emitParticles(dt) {
-      /**
-       * Emits no particles.
-       */
-      // No particles for centipede
     }
   }
   // =================================================================
@@ -770,7 +771,7 @@ class Koi extends Fish {
   // This class defines the behavior and appearance of the snake.
   // It manages the skeleton, movement, and rendering of the creature.
   // =================================================================
-  class Snake {
+  class Snake extends SkeletalEntity {
     /**
      * Manages the behavior and appearance of the snake.
      * Manages the skeleton, movement, and rendering of the creature.
@@ -785,62 +786,11 @@ class Koi extends Fish {
         mouthIdleSpeed: 0.003,
       }, config);
 
-      this.bones = [];
-      this.init();
-    }
-
-    init() {
-      /**
-       * Initializes the snake's bones with a default position and angle.
-       */
-      this.bones = [];
-      const hx = Math.round(w / 2);
-      const hy = Math.round(h / 2);
-      for (let i = 0; i < this.config.boneCount; i++) {
-        this.bones.push({
-          x: hx - i * this.config.boneLength,
-          y: hy,
-          angle: 0
-        });
-      }
-    }
-
-    update(dt, px, py, speedVal) {
-      /**
-       * Updates the snake's properties based on the provided parameters.
-       * Moves the head towards the cursor and updates the position and angle of each bone segment.
-       * @param {number} dt - The time delta in seconds.
-       * @param {number} px - The x coordinate of the cursor.
-       * @param {number} py - The y coordinate of the cursor.
-       * @param {number} speedVal - A multiplier to adjust the snake's speed.
-       */
-      const head = this.bones[0];
-
-      const dx = px - head.x;
-      const dy = py - head.y;
-      const dist = Math.hypot(dx, dy) || 1;
-      const targetAngle = Math.atan2(dy, dx);
-
-      // Smooth angle rotation
-      head.angle = angleLerp(head.angle, targetAngle, Math.min(1, dt * 8));
-
-      // Movement speed scales with distance
-      const moveSpeed = lerp(0.5, 4.5, Math.min(1, dist / 400)) * speedVal;
-      head.x += Math.cos(head.angle) * moveSpeed * Math.min(1, dt * 60);
-      head.y += Math.sin(head.angle) * moveSpeed * Math.min(1, dt * 60);
-
-      // Update bones
-      for (let i = 1; i < this.bones.length; i++) {
-        const parent = this.bones[i - 1];
-        const child = this.bones[i];
-        const bdx = parent.x - child.x;
-        const bdy = parent.y - child.y;
-        const bTargetAngle = Math.atan2(bdy, bdx);
-
-        child.x = parent.x - Math.cos(bTargetAngle) * this.config.boneLength;
-        child.y = parent.y - Math.sin(bTargetAngle) * this.config.boneLength;
-        child.angle = bTargetAngle;
-      }
+      super({
+        boneCount: this.config.boneCount,
+        boneLength: this.config.boneLength,
+        headSpeed: { min: 0.5, max: 4.5, dist: 400 }
+      });
     }
 
     draw(ctx, px, py) {
@@ -1050,7 +1000,7 @@ class Koi extends Fish {
 // DRAGON ENTITY
 // A standalone class for the dragon, with its own skeleton, limbs, and rendering.
 // =================================================================
-class Dragon {
+class Dragon extends SkeletalEntity {
   /**
    * Represents a dragon with its own skeleton, limbs, and rendering.
    * Manages the dragon's bones, ribs, limbs, and wings.
@@ -1065,38 +1015,28 @@ class Dragon {
       mouthIdleSpeed: 0.003,
       maxParticles: 1500,
       followDelay: 0.08, // Smooth following delay (lower = faster response)
-      rotationSmoothing: 0.12, // Angle interpolation speed
-      tailStiffness: 0.85, // How much the tail resists sudden movements
     }, config);
 
-    this.bones = [];
-    this.ribs = [];
-    this.limbs = [];
+    super({
+      boneCount: this.config.boneCount,
+      boneLength: this.config.boneLength,
+      headAngleSmoothing: 1 / this.config.followDelay / 60, // Convert delay to smoothing factor
+      headSpeed: { min: 1.5, max: 8.0, dist: 500 } // Custom speed for dragon
+    });
 
+    this.limbs = [];
     this.wings = [];
     this.init();
   }
 
   init() {
-    const { boneCount, boneLength } = this.config;
-    const hx = Math.round(w / 2);
-    const hy = Math.round(h / 2);
-
-    // Backbone
-    let prev = new Bone(hx, hy, null, boneLength, 0);
-    this.bones.push(prev);
-    for (let i = 1; i < boneCount; i++) {
-      const b = new Bone(prev.x - boneLength, prev.y, prev, boneLength, 0);
-      this.bones.push(b);
-      prev = b;
-    }
+    // The super() call in the constructor now handles bone initialization.
+    // We only need to initialize the limbs and wings here.
 
     // Limbs and Wings
     this.limbs = [
-      // Forelimbs (multi-jointed)
       new LimbSystem(this.bones[6], 3, 25, 1, 3),
       new ForeLimbSystem(this.bones[6], 3, 25, -1, 3),
-      // Hindlimbs (multi-jointed)
       new HindLimbSystem(this.bones[25], 3, 25, 1, 3),
       new HindLimbSystem(this.bones[25], 3, 25, -1, 3),
     ];
@@ -1108,28 +1048,16 @@ class Dragon {
   }
 
   update(dt, px, py, speedVal) {
+    // First, call the parent update method to move the spine
+    super.update(dt, px, py, speedVal);
+
     const time = performance.now();
     const head = this.bones[0];
-    const { boneLength } = this.config;
 
     // Head movement
     const dx = px - head.x;
     const dy = py - head.y;
     const dist = Math.hypot(dx, dy);
-    head.angle = Math.atan2(dy, dx);
-    head.x += dx * 0.05 * speedVal;
-    head.y += dy * 0.05 * speedVal;
-
-    // Spine follow
-    for (let i = 1; i < this.bones.length; i++) {
-      const b = this.bones[i];
-      const bdx = b.parent.x - b.x;
-      const bdy = b.parent.y - b.y;
-      const targetAngle = Math.atan2(bdy, bdx);
-      b.angle = targetAngle;
-      b.x = b.parent.x - Math.cos(targetAngle) * b.length;
-      b.y = b.parent.y - Math.sin(targetAngle) * b.length;
-    }
 
     // Update ribs, limbs, and wings
     this.limbs.forEach(l => l.update(time, dist));
