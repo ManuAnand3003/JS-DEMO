@@ -1,6 +1,6 @@
 # IDE and editor files
 .vscode/
 
-# OS-generated files
+# Operating System files
 .DS_Store
 Thumbs.db
