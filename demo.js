@@ -271,11 +271,10 @@
   // FORELIMB SYSTEM
   // =================================================================
   class ForeLimbSystem extends LimbSystem {
+    // Specific update logic for forelimbs
     /**
-     * Adjusts the angles and sway of the forelimb segments.
-     * Specific update logic for forelimbs.
+     * Adjusts the angles and sway of the forelimb segments for a more natural front-leg motion.
      */
-      // Specific update logic for forelimbs
     update(time, moveDist = 0) {
       this.segments.forEach((seg, i) => {
         const parentAngle = seg.parent ? seg.parent.angle : 0;
@@ -297,9 +296,7 @@
 
   class WingSystem extends LimbSystem {
     /**
-     * The wings flap with a sweeping motion, folding and fluttering in a coordinated manner.
-     * Generates a flapping animation for wings.
-     * The wings flap with a sweeping motion, folding and fluttering in a coordinated manner.
+     * Generates a flapping animation for wings, creating a sweeping motion where they fold and flutter.
      */
     update(time, moveDist = 0) {
       const flapCycle = time / 600; // Slower, more majestic flap
@@ -393,12 +390,14 @@
   // =================================================================
   class SkeletalEntity {
     constructor(config) {
+      // The child class now provides the full config object.
+      // We just ensure the base properties exist.
       this.config = Object.assign({
         boneCount: 20,
         boneLength: 25,
         headAngleSmoothing: 8,
         headSpeed: { min: 1.5, max: 6.0, dist: 300 },
-      }, config);
+      }, config || {});
       this.bones = [];
       this.init();
     }
@@ -777,20 +776,19 @@ class Koi extends Fish {
      * Manages the skeleton, movement, and rendering of the creature.
      */
     constructor(config = {}) {
-      this.config = Object.assign({
+      // Create the complete config object first.
+      const finalConfig = Object.assign({
         boneCount: 22,
         boneLength: 26,
         glowHue: 190,
         glowHueRange: 60,
         ribWobbleAmp: 2,
         mouthIdleSpeed: 0.003,
+        headSpeed: { min: 0.5, max: 4.5, dist: 400 }
       }, config);
 
-      super({
-        boneCount: this.config.boneCount,
-        boneLength: this.config.boneLength,
-        headSpeed: { min: 0.5, max: 4.5, dist: 400 }
-      });
+      // Pass the final, unified config to the parent.
+      super(finalConfig);
     }
 
     draw(ctx, px, py) {
@@ -1006,7 +1004,8 @@ class Dragon extends SkeletalEntity {
    * Manages the dragon's bones, ribs, limbs, and wings.
    */
   constructor(config = {}) {
-    this.config = Object.assign({
+    // Create the complete config object first.
+    const finalConfig = Object.assign({
       boneCount: 45,
       boneLength: 28,
       glowHue: 190,
@@ -1015,50 +1014,38 @@ class Dragon extends SkeletalEntity {
       mouthIdleSpeed: 0.003,
       maxParticles: 1500,
       followDelay: 0.08, // Smooth following delay (lower = faster response)
+      headAngleSmoothing: 1 / (0.08 * 60), // Convert delay to smoothing factor
+      headSpeed: { min: 1.5, max: 8.0, dist: 500 } // Custom speed for dragon
     }, config);
 
-    super({
-      boneCount: this.config.boneCount,
-      boneLength: this.config.boneLength,
-      headAngleSmoothing: 1 / this.config.followDelay / 60, // Convert delay to smoothing factor
-      headSpeed: { min: 1.5, max: 8.0, dist: 500 } // Custom speed for dragon
-    });
+    // Pass the final, unified config to the parent.
+    super(finalConfig);
 
     this.limbs = [];
     this.wings = [];
-    this.init();
-  }
 
-  init() {
-    // The super() call in the constructor now handles bone initialization.
-    // We only need to initialize the limbs and wings here.
-
-    // Limbs and Wings
+    // Initialize limbs and wings after the parent constructor has created the bones.
     this.limbs = [
       new LimbSystem(this.bones[6], 3, 25, 1, 3),
       new ForeLimbSystem(this.bones[6], 3, 25, -1, 3),
       new HindLimbSystem(this.bones[25], 3, 25, 1, 3),
       new HindLimbSystem(this.bones[25], 3, 25, -1, 3),
     ];
-
     this.wings = [
       new WingSystem(this.bones[7], 5, 30, 1, 0),
       new WingSystem(this.bones[7], 5, 30, -1, 0),
     ];
   }
-
   update(dt, px, py, speedVal) {
     // First, call the parent update method to move the spine
-    super.update(dt, px, py, speedVal);
-
     const time = performance.now();
     const head = this.bones[0];
 
-    // Head movement
-    const dx = px - head.x;
-    const dy = py - head.y;
-    const dist = Math.hypot(dx, dy);
+    // Calculate distance to cursor BEFORE moving, so limbs get the correct value for animation.
+    const dist = Math.hypot(px - head.x, py - head.y);
 
+    // Now, move the entity.
+    super.update(dt, px, py, speedVal);
     // Update ribs, limbs, and wings
     this.limbs.forEach(l => l.update(time, dist));
     this.wings.forEach(w => w.update(time, dist));
@@ -1153,20 +1140,6 @@ class Dragon extends SkeletalEntity {
     ctx.fill();
     ctx.stroke();
 
-    // Open mouth
-    const dxh = px - head.x;
-    const dyh = py - head.y;
-    const distH = Math.hypot(dxh, dyh) || 1;
-    const idle = (Math.sin(performance.now() * config.mouthIdleSpeed) + 1) * 0.5;
-    const openFactor = Math.max(0, Math.min(1, 1 - distH / 200)) + idle * 0.3;
-    ctx.beginPath();
-    ctx.moveTo(-boneLength * 0.2, 0);
-    ctx.lineTo(boneLength * 0.5, openFactor * 6);
-    ctx.lineTo(boneLength * 0.5, -openFactor * 6);
-    ctx.closePath();
-    ctx.fillStyle = '#070e20';
-    ctx.fill();
-
     // Horns/spikes
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 2;
@@ -1178,6 +1151,36 @@ class Dragon extends SkeletalEntity {
     ctx.moveTo(-boneLength * 0.5, boneLength * 0.3);
     ctx.lineTo(-boneLength * 0.7, boneLength * 0.6);
     ctx.stroke();
+
+    // Eyes that glow and track the cursor's position.
+    const dxh = px - head.x;
+    const dyh = py - head.y;
+    const eyeAngle = Math.atan2(dyh, dxh) - head.angle;
+    const eyeDist = Math.min(boneLength * 0.1, Math.hypot(dxh, dyh) * 0.05);
+    const ex = Math.cos(eyeAngle) * eyeDist;
+    const ey = Math.sin(eyeAngle) * eyeDist;
+
+    ctx.fillStyle = `hsl(${glowHue}, 100%, 70%)`;
+    ctx.shadowColor = `hsl(${glowHue}, 100%, 70%)`;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(boneLength * 0.3 + ex, -boneLength * 0.2 + ey, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(boneLength * 0.3 + ex, boneLength * 0.2 + ey, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;    // Mouth (new, correct implementation)
+    const distH = Math.hypot(px - head.x, py - head.y) || 1;
+    const idle = (Math.sin(performance.now() * config.mouthIdleSpeed) + 1) * 0.5;
+    const openFactor = Math.max(0, Math.min(1, 1 - distH / 200)) + idle * 0.3;
+    ctx.fillStyle = `hsl(${glowHue}, 90%, 50%)`;
+    ctx.beginPath();
+    ctx.moveTo(boneLength * 0.6, 0);
+    ctx.lineTo(boneLength * 0.4, openFactor * 4);
+    ctx.lineTo(boneLength * 0.4, -openFactor * 4);
+    ctx.closePath();
+    ctx.fill();
 
     ctx.restore();
   }

@@ -4,3 +4,13 @@
 # Operating System files
 .DS_Store
 Thumbs.db
+
+# Dependency directories
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Log files
+*.log
